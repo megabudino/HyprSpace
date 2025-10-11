@@ -3,14 +3,28 @@ cd "$(dirname "$0")"
 source ./script/setup.sh
 
 build_version="0.0.0-SNAPSHOT"
-codesign_identity="hyprspace-codesign-certificate"
+codesign_identity="${CODESIGN_IDENTITY:-hyprspace-codesign-certificate}"
+notarize_app="false"
+apple_id="${APPLE_ID:-}"
+apple_id_password="${APPLE_ID_PASSWORD:-}"
+apple_team_id="${APPLE_TEAM_ID:-}"
+
 while test $# -gt 0; do
     case $1 in
         --build-version) build_version="$2"; shift 2;;
         --codesign-identity) codesign_identity="$2"; shift 2;;
+        --notarize) notarize_app="true"; shift;;
+        --apple-id) apple_id="$2"; shift 2;;
+        --apple-id-password) apple_id_password="$2"; shift 2;;
+        --apple-team-id) apple_team_id="$2"; shift 2;;
         *) echo "Unknown option $1" > /dev/stderr; exit 1 ;;
     esac
 done
+
+# Auto-enable notarization if credentials are available
+if [ -n "$apple_id" ] && [ -n "$apple_id_password" ] && [ -n "$apple_team_id" ]; then
+    notarize_app="true"
+fi
 
 generate-git-hash() {
 cat > Sources/Common/gitHashGenerated.swift <<EOF
@@ -112,6 +126,53 @@ check-contains-hash .release/hyprspace
 
 codesign -v .release/HyprSpace.app
 codesign -v .release/hyprspace
+
+#################
+### NOTARIZE ###
+#################
+
+if [ "$notarize_app" = "true" ]; then
+    echo "Notarizing HyprSpace.app..."
+
+    # Create a temporary ZIP for notarization
+    cd .release
+    zip -r HyprSpace-notarize.zip HyprSpace.app
+
+    # Submit for notarization
+    echo "Submitting app for notarization..."
+    xcrun notarytool submit HyprSpace-notarize.zip \
+        --apple-id "$apple_id" \
+        --password "$apple_id_password" \
+        --team-id "$apple_team_id" \
+        --wait \
+        --verbose
+
+    # Staple the notarization to the app
+    echo "Stapling notarization to HyprSpace.app..."
+    xcrun stapler staple HyprSpace.app
+
+    # Also notarize the CLI binary
+    echo "Notarizing hyprspace CLI..."
+    zip -j hyprspace-notarize.zip hyprspace
+
+    xcrun notarytool submit hyprspace-notarize.zip \
+        --apple-id "$apple_id" \
+        --password "$apple_id_password" \
+        --team-id "$apple_team_id" \
+        --wait
+
+    # Note: We can't staple the CLI binary directly, but it will be included
+    # in the notarized package
+
+    # Clean up temporary files
+    rm -f HyprSpace-notarize.zip hyprspace-notarize.zip
+    cd ..
+
+    echo "Notarization complete!"
+
+    # Verify notarization
+    spctl -a -vvv -t install .release/HyprSpace.app || true
+fi
 
 ############
 ### PACK ###

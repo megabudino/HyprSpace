@@ -1,0 +1,217 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Swift
+        uses: fwal/setup-swift@v1
+        with:
+          swift-version: "6.1.2"
+
+      - name: Install dependencies
+        run: |
+          brew install swiftformat swiftlint xcodegen ruby
+          gem install asciidoctor
+          ./script/install-dep.sh
+
+      - name: Run tests
+        run: ./run-tests.sh
+
+      - name: Import certificates
+        if: github.event_name == 'push' || github.event.inputs.tag != ''
+        env:
+          CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
+          CERTIFICATES_PASSWORD: ${{ secrets.CERTIFICATES_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_NAME="build.keychain"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security default-keychain -s "$KEYCHAIN_NAME"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_NAME"
+
+          # Import certificate
+          echo "$CERTIFICATES_P12" | base64 --decode -o certificate.p12
+          security import certificate.p12 -P "$CERTIFICATES_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_NAME"
+          security list-keychain -d user -s "$KEYCHAIN_NAME"
+
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+
+      - name: Build release
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY || 'hyprspace-codesign-certificate' }}
+        run: |
+          export RELEASE_VERSION="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          ./build-release.sh
+
+      - name: Notarize app
+        if: (github.event_name == 'push' || github.event.inputs.tag != '') && secrets.APPLE_ID != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd .release
+
+          # Find the latest release zip
+          RELEASE_ZIP=$(ls -t HyprSpace-*.zip | head -1)
+
+          # Submit for notarization
+          echo "Submitting $RELEASE_ZIP for notarization..."
+          xcrun notarytool submit "$RELEASE_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization
+          echo "Stapling notarization..."
+          unzip -q "$RELEASE_ZIP"
+          xcrun stapler staple "HyprSpace.app"
+          xcrun stapler staple "bin/hyprspace"
+
+          # Repackage with notarization
+          zip -r "$RELEASE_ZIP" HyprSpace.app bin manpage legal shell-completion
+
+          # Clean up
+          rm -rf HyprSpace.app bin manpage legal shell-completion
+
+      - name: Create DMG installer
+        run: |
+          cd .release
+          RELEASE_ZIP=$(ls -t HyprSpace-*.zip | head -1)
+          VERSION=$(echo "$RELEASE_ZIP" | sed 's/HyprSpace-//' | sed 's/.zip//')
+
+          # Extract the app
+          unzip -q "$RELEASE_ZIP"
+
+          # Create DMG
+          ./create-dmg.sh "HyprSpace-$VERSION.dmg" "HyprSpace.app"
+
+          # Clean up
+          rm -rf HyprSpace.app bin manpage legal shell-completion
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "## What's Changed" > release_notes.md
+            echo "" >> release_notes.md
+            git log --pretty=format:"* %s (%h)" "$PREVIOUS_TAG".."$VERSION" >> release_notes.md
+          else
+            echo "## Initial Release" > release_notes.md
+            echo "" >> release_notes.md
+            echo "First release of HyprSpace - a Hyprland-inspired tiling window manager for macOS." >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "## Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Homebrew (Recommended)" >> release_notes.md
+          echo '```bash' >> release_notes.md
+          echo "brew tap ${{ github.repository_owner }}/hyprspace" >> release_notes.md
+          echo "brew install hyprspace" >> release_notes.md
+          echo '```' >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Manual Installation" >> release_notes.md
+          echo "1. Download the DMG or ZIP file from the assets below" >> release_notes.md
+          echo "2. For DMG: Open and drag HyprSpace to Applications" >> release_notes.md
+          echo "3. For ZIP: Extract and move HyprSpace.app to /Applications" >> release_notes.md
+          echo "4. Grant accessibility permissions when prompted" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Requirements" >> release_notes.md
+          echo "- macOS 13.0 (Ventura) or later" >> release_notes.md
+          echo "- Accessibility permissions" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Note:** If macOS blocks the app, run: \`xattr -cr /Applications/HyprSpace.app\`" >> release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
+          name: HyprSpace ${{ github.ref_name || github.event.inputs.tag }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.event.inputs.tag, '-beta') }}
+          files: |
+            .release/HyprSpace-*.zip
+            .release/HyprSpace-*.dmg
+
+      - name: Update Homebrew tap
+        if: github.event_name == 'push' || github.event.inputs.tag != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -n "$HOMEBREW_TAP_TOKEN" ]; then
+            VERSION="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+
+            # Generate the cask formula
+            ./script/build-brew-cask.sh "$VERSION"
+
+            # Clone the tap repository
+            git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${{ github.repository_owner }}/homebrew-hyprspace.git" tap-repo
+
+            # Copy the formula
+            cp .brew/hyprspace.rb tap-repo/Casks/
+
+            # Commit and push
+            cd tap-repo
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "Update HyprSpace to $VERSION"
+            git push
+          else
+            echo "HOMEBREW_TAP_TOKEN not set, skipping Homebrew tap update"
+          fi
+
+  test:
+    runs-on: macos-14
+    if: github.event_name != 'push' && github.event_name != 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: fwal/setup-swift@v1
+        with:
+          swift-version: "6.1.2"
+
+      - name: Install dependencies
+        run: |
+          brew install swiftformat swiftlint
+          ./script/install-dep.sh
+
+      - name: Run tests
+        run: ./run-swift-test.sh
+
+      - name: Check formatting
+        run: ./format.sh --check

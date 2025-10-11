@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: fwal/setup-swift@v1
+        with:
+          swift-version: "6.1.2"
+
+      - name: Cache Swift dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swift-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-
+
+      - name: Install dependencies
+        run: |
+          brew install swiftformat swiftlint
+          ./script/install-dep.sh
+
+      - name: Check formatting
+        run: |
+          ./format.sh --check || {
+            echo "::error::Code is not properly formatted. Run ./format.sh locally and commit the changes."
+            exit 1
+          }
+
+      - name: Run SwiftLint
+        run: swiftlint --strict
+
+      - name: Build debug
+        run: ./build-debug.sh
+
+      - name: Run tests
+        run: ./run-swift-test.sh
+
+      - name: Verify generated files are up to date
+        run: |
+          ./generate.sh
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated files are out of date. Run ./generate.sh locally and commit the changes."
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Build documentation
+        run: ./build-docs.sh
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: .build/*/testresults/

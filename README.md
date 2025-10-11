@@ -2,6 +2,13 @@
 
 # HyprSpace
 
+[![CI](https://github.com/BarutSRB/HyprSpace/actions/workflows/ci.yml/badge.svg)](https://github.com/BarutSRB/HyprSpace/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/BarutSRB/HyprSpace)](https://github.com/BarutSRB/HyprSpace/releases)
+[![macOS](https://img.shields.io/badge/macOS-13.0%2B-blue)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-6.1.2-orange)](https://swift.org)
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![Homebrew](https://img.shields.io/badge/Homebrew-Ready-yellow)](https://brew.sh)
+
 **A Hyprland-inspired tiling window manager for macOS**
 
 HyprSpace brings the powerful Hyprland tiling window manager experience to macOS, featuring a beautiful workspace bar that seamlessly blends with the macOS aesthetic while remaining unobtrusive, useful, and fully interactive with mouse support.
@@ -29,31 +36,37 @@ This project is a heavily modified fork of [AeroSpace](https://github.com/nikita
 
 ## 📦 Installation
 
-### Method 1: Homebrew (Recommended - Coming Soon)
-
-Once the Homebrew tap is published, you'll be able to install with:
+### Method 1: Homebrew (Recommended)
 
 ```bash
-brew install --cask barutsrb/tap/hyprspace
+# Add the tap (once the tap is published)
+brew tap barutsrb/hyprspace
+
+# Install HyprSpace
+brew install --cask hyprspace
 ```
 
-### Method 2: Download Release (Manual Installation)
+### Method 2: Download DMG (Easy Installation)
 
-1. Download the latest `HyprSpace-vX.X.X.zip` from [GitHub Releases](https://github.com/BarutSRB/HyprSpace/releases)
+1. Download the latest `.dmg` file from [GitHub Releases](https://github.com/BarutSRB/HyprSpace/releases/latest)
+2. Open the DMG and drag HyprSpace to your Applications folder
+3. Grant accessibility permissions when prompted on first launch
+4. If macOS blocks the app: `xattr -cr /Applications/HyprSpace.app`
+
+### Method 3: Download ZIP (Manual Installation)
+
+1. Download the latest `HyprSpace-vX.X.X.zip` from [GitHub Releases](https://github.com/BarutSRB/HyprSpace/releases/latest)
 2. Extract the zip file
 3. Copy `HyprSpace.app` to `/Applications/`
-4. Copy the `hyprspace` CLI binary to a directory in your PATH (e.g., `/usr/local/bin/`)
-5. Remove quarantine attribute:
-   ```bash
-   xattr -d com.apple.quarantine /Applications/HyprSpace.app
-   xattr -d com.apple.quarantine /usr/local/bin/hyprspace
-   ```
-6. Copy the default configuration:
-   ```bash
-   cp ~/Downloads/HyprSpace-vX.X.X/HyprSpace.app/Contents/Resources/default-config.toml ~/.hyprspace.toml
-   ```
+4. Copy `bin/hyprspace` to your PATH (e.g., `/usr/local/bin/`)
+5. Install man pages: `cp -r manpage/*.1 /usr/local/share/man/man1/`
+6. Install shell completions (optional):
+   - Bash: `cp shell-completion/bash/hyprspace /usr/local/share/bash-completion/completions/`
+   - Zsh: `cp shell-completion/zsh/_hyprspace /usr/local/share/zsh/site-functions/`
+   - Fish: `cp shell-completion/fish/hyprspace.fish ~/.config/fish/completions/`
+7. If macOS blocks the app: `xattr -cr /Applications/HyprSpace.app`
 
-### Method 3: Build from Source
+### Method 4: Build from Source
 
 ```bash
 git clone https://github.com/BarutSRB/HyprSpace.git
@@ -61,10 +74,12 @@ cd HyprSpace
 ./script/install-dep.sh
 ./build-release.sh
 # Binaries will be in .release/ directory
+# Or install locally as dev version:
+./install-from-sources.sh
 ```
 
 > [!NOTE]
-> HyprSpace is not [notarized](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution) by Apple. You need to remove the quarantine attribute manually after installation.
+> Future releases will include Apple notarization for a smoother installation experience. Currently, you may need to remove the quarantine attribute manually.
 
 > [!IMPORTANT]
 > **Accessibility Permissions Required**: On first launch, macOS will prompt you to grant Accessibility permissions to HyprSpace. Go to System Settings → Privacy & Security → Accessibility and enable HyprSpace.
@@ -420,6 +435,25 @@ To build the app bundle, create a self-signed certificate:
 
 ### Creating a Release
 
+#### Automated Release (GitHub Actions)
+
+Simply push a version tag to trigger the automated release:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The GitHub Actions workflow will:
+- Run all tests
+- Build universal binaries (x86_64 + arm64)
+- Sign with Developer ID (if configured)
+- Notarize the app (if Apple credentials are configured)
+- Create DMG installer
+- Upload to GitHub Releases
+- Update Homebrew tap automatically
+
+#### Manual Release
+
 1. **Test everything**:
    ```bash
    ./run-tests.sh
@@ -428,21 +462,52 @@ To build the app bundle, create a self-signed certificate:
 2. **Build release** (creates universal binary for x86_64 + arm64):
    ```bash
    ./build-release.sh --build-version "1.0.0"
+   # With notarization (requires Apple Developer account):
+   ./build-release.sh --build-version "1.0.0" --notarize \
+     --apple-id "your@email.com" \
+     --apple-id-password "app-specific-password" \
+     --apple-team-id "TEAM123"
    ```
 
-3. **Check artifacts** in `.release/`:
-   - `HyprSpace-v1.0.0.zip` - Complete release package
-   - `hyprspace.rb` - Homebrew cask file (for stable releases)
-   - `hyprspace-dev.rb` - Homebrew cask file (for development)
+3. **Create DMG installer**:
+   ```bash
+   cd .release
+   ./create-dmg.sh "HyprSpace-v1.0.0.dmg" "HyprSpace.app"
+   ```
 
-4. **Create GitHub Release**:
-   - Tag: `v1.0.0`
-   - Upload `HyprSpace-v1.0.0.zip`
-   - Add release notes
+4. **Publish using automated script**:
+   ```bash
+   ./script/publish-release-automated.sh --build-version "1.0.0"
+   ```
 
-5. **Publish to Homebrew** (requires separate tap repository):
-   - Copy `hyprspace.rb` to your homebrew-tap repository
-   - Commit and push
+   Or manually create GitHub Release and upload:
+   - `HyprSpace-v1.0.0.zip` - Complete package with app, CLI, docs
+   - `HyprSpace-v1.0.0.dmg` - Drag-to-Applications installer
+
+5. **Update Homebrew tap** (automatic with GitHub Actions or manual):
+   ```bash
+   ./script/build-brew-cask.sh --build-version "1.0.0"
+   # Copy to your tap repository and commit
+   ```
+
+#### Setting up Distribution
+
+For maintainers setting up distribution for the first time:
+
+1. **GitHub Actions Secrets** (in repository settings):
+   - `CODESIGN_IDENTITY`: Developer ID Application certificate name
+   - `CERTIFICATES_P12`: Base64-encoded .p12 certificate file
+   - `CERTIFICATES_PASSWORD`: Certificate password
+   - `KEYCHAIN_PASSWORD`: Temporary keychain password
+   - `APPLE_ID`: Apple ID for notarization
+   - `APPLE_ID_PASSWORD`: App-specific password
+   - `APPLE_TEAM_ID`: Apple Developer Team ID
+   - `HOMEBREW_TAP_TOKEN`: GitHub token for tap repository updates
+
+2. **Homebrew Tap Setup**:
+   - Create repository named `homebrew-hyprspace`
+   - Copy contents from `homebrew-tap-template/`
+   - Run `./setup.sh` and follow instructions
 
 For more details, see `CLAUDE.md` and `CONTRIBUTING.md`.
 
