@@ -2,6 +2,26 @@
 cd "$(dirname "$0")"
 source ./script/setup.sh
 
+# Check if documentation source files exist
+if ! ls docs/*.adoc > /dev/null 2>&1; then
+    echo "⚠️  No documentation source files found in docs/*.adoc"
+    echo "Skipping documentation build..."
+
+    # Create empty directories so the build doesn't fail
+    rm -rf .site && mkdir .site
+    rm -rf .man && mkdir .man
+
+    # Create minimal placeholder man page
+    mkdir -p .man
+    echo ".TH HYPRSPACE 1 \"$(date +%Y-%m-%d)\" \"HyprSpace\" \"User Commands\"" > .man/hyprspace.1
+    echo ".SH NAME" >> .man/hyprspace.1
+    echo "hyprspace \\- Hyprland-inspired tiling window manager for macOS" >> .man/hyprspace.1
+    echo ".SH DESCRIPTION" >> .man/hyprspace.1
+    echo "See https://github.com/BarutSRB/HyprSpace for documentation" >> .man/hyprspace.1
+
+    exit 0
+fi
+
 ./script/install-dep.sh --bundler
 
 rm -rf .site && mkdir .site
@@ -9,20 +29,28 @@ rm -rf .man && mkdir .man
 
 cp-docs() {
     cp -r ./docs/*.adoc "$1"
-    cp -r ./docs/assets "$1"
-    cp -r ./docs/util "$1"
+    if test -d ./docs/assets; then
+        cp -r ./docs/assets "$1"
+    fi
+    if test -d ./docs/util; then
+        cp -r ./docs/util "$1"
+    fi
     cp -r ./docs/config-examples "$1"
 }
 
 build-site() {
     cp-docs ./.site
-    cp ./docs/index.html ./.site
+    if test -f ./docs/index.html; then
+        cp ./docs/index.html ./.site
+    fi
 
     cd .site
         # Delete "hyprspace " prefifx in synopsis
-        sed -E -i '' '/tag::synopsis/, /end::synopsis/ s/^(hyprspace | {10})//' hyprspace*
-        bundler exec asciidoctor ./guide.adoc ./commands.adoc ./goodies.adoc
-        cp goodies.html goodness.html # backwards compatibility
+        sed -E -i '' '/tag::synopsis/, /end::synopsis/ s/^(hyprspace | {10})//' hyprspace* 2>/dev/null || true
+        bundler exec asciidoctor ./guide.adoc ./commands.adoc ./goodies.adoc 2>/dev/null || true
+        if test -f goodies.html; then
+            cp goodies.html goodness.html # backwards compatibility
+        fi
         rm -rf ./*.adoc
     cd - > /dev/null
 
