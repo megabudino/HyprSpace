@@ -48,9 +48,7 @@ public func menuBar(viewModel: TrayMenuModel) -> some Scene { // todo should it 
         }.keyboardShortcut("Q", modifiers: .command)
     } label: {
         if viewModel.isEnabled {
-            Image("AppIcon")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            MenuBarLabel(viewModel.trayText, trayItems: viewModel.trayItems)
         } else {
             Image(systemName: "pause.circle.fill")
                 .resizable()
