@@ -28,3 +28,12 @@
 - Gotchas encountered: prefer returning Sendable values (like Set copies) when reading MainActor state from observer code.
 - Useful context: new window IDs are detected by diffing getWindowIdsSync results against knownWindowIds.
 ---
+
+## 2026-01-22 16:15 - US-004
+- Verified debug build/typecheck via ./build-debug.sh; manual window jitter verification still needed.
+- Files changed: tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: use ./build-debug.sh to satisfy typecheck acceptance criteria.
+- Gotchas encountered: build emits known Sendable conformance warnings from macOS SDK.
+- Useful context: manual tiling window check is required to confirm jitter-free placement.
+---

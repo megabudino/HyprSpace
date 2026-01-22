@@ -59,7 +59,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "This is mostly verification - existing layout code should handle it"
     },
     {
