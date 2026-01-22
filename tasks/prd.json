@@ -30,7 +30,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Check parent.cases for .tilingContainer to determine if window is tiling"
     },
     {

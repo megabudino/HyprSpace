@@ -1,6 +1,7 @@
 ## Codebase Patterns
 - AxWindowKindTest expects `./axDumps` to exist when running `./run-tests.sh`.
 - Config tests read `docs/config-examples/i3-like-config-example.toml` during `./run-tests.sh`.
+- Tiling windows can be identified by a parent `cases` value of `.tilingContainer`.
 
 ## 2026-01-22 15:05 - US-001
 - Extracted `computeMonitorToOptimalHideCorner` helper and reused it in layout.
@@ -11,4 +12,14 @@
   - Patterns discovered: `layoutWorkspaces()` uses monitor top-left corners as map keys for per-monitor data.
   - Gotchas encountered: `./run-tests.sh` requires `axDumps` and `docs/config-examples/i3-like-config-example.toml` to exist.
   - Useful context: `OptimalHideCorner` and layout logic live in `Sources/AppBundle/layout/refresh.swift`.
+---
+
+## 2026-01-22 15:04 - US-002
+- Hid newly registered tiling windows offscreen on visible workspaces before callbacks run.
+- Used `computeMonitorToOptimalHideCorner` to pick the hide corner per monitor.
+- Files changed: `Sources/AppBundle/tree/MacWindow.swift`, `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: new tiling windows can be hidden immediately after binding in `MacWindow.getOrRegister`.
+  - Gotchas encountered: none.
+  - Useful context: the optimal hide corner map expects monitor top-left corner keys.
 ---
