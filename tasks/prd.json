@@ -1,0 +1,95 @@
+{
+  "project": "HyprSpace",
+  "branchName": "ralph/window-jitter-hide-then-reveal",
+  "description": "Window Jitter Fix - Hide new tiling windows offscreen immediately, then reveal at correct position during layout",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Extract optimal corner calculation helper",
+      "description": "As a developer, I need a reusable function to compute the optimal hide corner for each monitor so I don't duplicate the multi-monitor corner logic.",
+      "acceptanceCriteria": [
+        "Extract `computeMonitorToOptimalHideCorner(monitors:) -> [CGPoint: OptimalHideCorner]` from `layoutWorkspaces()` in Sources/AppBundle/layout/refresh.swift",
+        "Function is pure and reusable from multiple call sites",
+        "`layoutWorkspaces()` uses the extracted helper with no behavior change",
+        "Typecheck passes (`./build-debug.sh`)",
+        "Existing tests pass (`./run-tests.sh`)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Hide new tiling windows immediately on registration",
+      "description": "As a user, I want new tiling windows to be hidden offscreen immediately so I don't see them at the default macOS position.",
+      "acceptanceCriteria": [
+        "In `MacWindow.getOrRegister` (Sources/AppBundle/tree/MacWindow.swift), after binding window to tree and before returning, check if window is tiling",
+        "If window parent is `TilingContainer` or `rootTilingContainer` AND workspace is visible, call `hideInCorner()` immediately",
+        "Use `computeMonitorToOptimalHideCorner` to select the optimal corner",
+        "Window is hidden before `tryOnWindowDetected` callbacks run",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Check parent.cases for .tilingContainer to determine if window is tiling"
+    },
+    {
+      "id": "US-003",
+      "title": "Skip hiding for popup and dialog windows",
+      "description": "As a user, I want popup and dialog windows to open at their natural macOS position without being hidden.",
+      "acceptanceCriteria": [
+        "Popup windows (parent is `macosPopupWindowsContainer`) are NOT hidden",
+        "Dialog windows (parent is workspace directly) are NOT hidden",
+        "Only windows with parent `TilingContainer` are hidden",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "This is part of the condition in US-002 but explicitly verified"
+    },
+    {
+      "id": "US-004",
+      "title": "Skip hiding for windows on invisible workspaces",
+      "description": "As a developer, I need to avoid double-hiding windows that are already on invisible workspaces.",
+      "acceptanceCriteria": [
+        "Only hide windows when `workspace.isVisible` is true",
+        "Windows on invisible workspaces are handled by existing `layoutWorkspaces()` hide logic",
+        "No redundant `hideInCorner` calls",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Check nodeWorkspace?.isVisible before calling hideInCorner"
+    },
+    {
+      "id": "US-005",
+      "title": "Verify existing layout handles reveal correctly",
+      "description": "As a user, I want hidden windows to appear at their correct tiled position when layout runs.",
+      "acceptanceCriteria": [
+        "Existing `layoutWorkspaces()` flow handles unhiding automatically via `unhideFromCorner()`",
+        "`layoutRecursive` sets correct frame, overwriting the hidden position",
+        "No additional code needed in layout path - verify existing behavior works",
+        "Manually test: open a new tiling window and confirm it appears at correct position without jitter",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "This story is mostly verification that existing code works with the new hide call"
+    },
+    {
+      "id": "US-006",
+      "title": "Test multi-monitor corner selection",
+      "description": "As a user with multiple monitors, I want new windows to be hidden in the optimal corner that doesn't overlap with other monitors.",
+      "acceptanceCriteria": [
+        "Windows hidden in bottom-left if bottom-right overlaps another monitor",
+        "Windows hidden in bottom-right otherwise (default)",
+        "Test with 2+ monitors using DeskPad or BetterDisplay 2",
+        "No window briefly visible at wrong position on any monitor",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Manual testing required with virtual monitors"
+    }
+  ]
+}

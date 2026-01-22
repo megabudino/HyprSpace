@@ -1,0 +1,3 @@
+# Minimal i3-like config example used in tests
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = false

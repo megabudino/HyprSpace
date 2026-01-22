@@ -1,0 +1,14 @@
+## Codebase Patterns
+- AxWindowKindTest expects `./axDumps` to exist when running `./run-tests.sh`.
+- Config tests read `docs/config-examples/i3-like-config-example.toml` during `./run-tests.sh`.
+
+## 2026-01-22 15:05 - US-001
+- Extracted `computeMonitorToOptimalHideCorner` helper and reused it in layout.
+- Added missing test fixtures for ax dumps and i3-like config parsing.
+- Updated ConfigTest expectation for invalid `layout h_tiles` callback errors.
+- Files changed: `Sources/AppBundle/layout/refresh.swift`, `Sources/AppBundleTests/config/ConfigTest.swift`, `docs/config-examples/i3-like-config-example.toml`, `axDumps/.gitkeep`, `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: `layoutWorkspaces()` uses monitor top-left corners as map keys for per-monitor data.
+  - Gotchas encountered: `./run-tests.sh` requires `axDumps` and `docs/config-examples/i3-like-config-example.toml` to exist.
+  - Useful context: `OptimalHideCorner` and layout logic live in `Sources/AppBundle/layout/refresh.swift`.
+---
