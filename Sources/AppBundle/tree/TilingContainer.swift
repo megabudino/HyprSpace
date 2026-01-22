@@ -12,7 +12,6 @@ class TilingContainer: TreeNode, NonLeafTreeNodeObject { // todo consider renami
         self.layout = layout
         super.init(parent: parent, adaptiveWeight: adaptiveWeight, index: index)
     }
-
 }
 
 extension TilingContainer {

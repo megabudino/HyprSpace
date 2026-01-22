@@ -2,6 +2,11 @@
 cd "$(dirname "$0")"
 source ./script/setup.sh
 
+if ! /usr/libexec/java_home >/dev/null 2>&1; then
+    echo "Java runtime not available; skipping shell parser generation."
+    exit 0
+fi
+
 ./script/install-dep.sh --antlr
 ./.deps/python-venv/bin/antlr4 -v "$antlr_version" -no-listener -Dlanguage=Swift \
     -o ./ShellParserGenerated/Sources/ShellParserGenerated \

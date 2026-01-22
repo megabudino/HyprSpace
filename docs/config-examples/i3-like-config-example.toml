@@ -1,0 +1,12 @@
+# i3-like HyprSpace Configuration Example
+# Place a copy of this config to ~/.hyprspace.toml
+# After that, you can edit ~/.hyprspace.toml to your liking
+
+# Normalizations. See: https://github.com/BarutSRB/HyprSpace/docs/guide#normalization
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = false
+
+# 'main' binding mode declaration
+# See: https://github.com/BarutSRB/HyprSpace/docs/guide#binding-modes
+# 'main' binding mode must be always presented
+[mode.main.binding]

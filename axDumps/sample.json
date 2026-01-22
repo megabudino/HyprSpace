@@ -1,0 +1,14 @@
+{
+  "Aero.AXApp": {
+    "AXTitle": "SampleApp"
+  },
+  "Aero.App.appBundleId": "com.example.sample",
+  "Aero.App.nsApp.activationPolicy": "regular",
+  "Aero.AxUiElementWindowType": "window",
+  "Aero.AxUiElementWindowType_isDialogHeuristic": false,
+  "AXSubrole": "AXStandardWindow",
+  "AXCloseButton": {},
+  "AXFullScreenButton": {
+    "AXEnabled": true
+  }
+}

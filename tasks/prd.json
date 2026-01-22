@@ -87,7 +87,7 @@
         "Tests pass (`./run-tests.sh`)"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

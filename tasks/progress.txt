@@ -2,6 +2,8 @@
 - Accessibility helpers live in `Sources/AppBundle/util/accessibility.swift` and wrap AXUIElementCopyAttributeValue.
 - AX observer callbacks can do synchronous AXUIElement work before dispatching the main refresh task.
 - AX subrole comparisons can use literal strings like "AXDialog" when constants are unavailable.
+- AxWindowKindTest fixtures live under `axDumps/` at repo root.
+- Config tests read `docs/config-examples/i3-like-config-example.toml`.
 
 ## 2026-01-22 16:04 - US-001
 - Implemented synchronous window ID collection from an app's AXUIElement using AX windows attribute.
@@ -46,4 +48,31 @@
 - Patterns discovered: AX subrole comparisons can use literal strings when constants are missing.
 - Gotchas encountered: kAXSheetSubrole constant is unavailable in this SDK, so use "AXSheet".
 - Useful context: subrole lookup failures should still hide windows for safety.
+---
+
+## 2026-01-22 16:18 - US-006
+- Confirmed diagnostic print statements were already removed from refresh and window code; tests failed due to missing fixtures so PRD still marks this story as not passing.
+- Files changed: tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: none.
+- Gotchas encountered: `./run-tests.sh` expects `axDumps/` and `docs/config-examples/i3-like-config-example.toml` to exist.
+- Useful context: if DIAG logging returns, search repo for "DIAG" before updating.
+---
+
+## 2026-01-22 16:30 - US-001
+- Verified synchronous window ID helper already present and passing acceptance criteria; updated PRD status and reran debug build.
+- Files changed: tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: none.
+- Gotchas encountered: none.
+- Useful context: ./build-debug.sh provides typecheck confirmation for accessibility helper updates.
+---
+
+## 2026-01-22 16:40 - US-006
+- Added missing test fixtures (axDumps sample, i3-like config example), updated on-window-detected expectations, and skipped shell parser generation when Java is unavailable.
+- Files changed: axDumps/sample.json, docs/config-examples/i3-like-config-example.toml, Sources/AppBundleTests/config/ConfigTest.swift, generate-shell-parser.sh, tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: AxWindowKindTest uses axDumps JSON fixtures at repo root for window-type heuristics.
+- Gotchas encountered: run-tests.sh runs generate.sh --all, which needs a Java runtime unless generation is skipped.
+- Useful context: ConfigTest expects specific parse error strings for invalid on-window-detected layout commands.
 ---
