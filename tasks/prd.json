@@ -29,7 +29,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Consider thread safety - observer runs on per-app thread"
     },
     {
