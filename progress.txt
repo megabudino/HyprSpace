@@ -2,6 +2,7 @@
 - AxWindowKindTest expects `./axDumps` to exist when running `./run-tests.sh`.
 - Config tests read `docs/config-examples/i3-like-config-example.toml` during `./run-tests.sh`.
 - Tiling windows can be identified by a parent `cases` value of `.tilingContainer`.
+- Use `getChildParentRelation(child:parent:)` when you need to distinguish tiling windows from popup/dialog windows.
 
 ## 2026-01-22 15:05 - US-001
 - Extracted `computeMonitorToOptimalHideCorner` helper and reused it in layout.
@@ -22,4 +23,13 @@
   - Patterns discovered: new tiling windows can be hidden immediately after binding in `MacWindow.getOrRegister`.
   - Gotchas encountered: none.
   - Useful context: the optimal hide corner map expects monitor top-left corner keys.
+---
+
+## 2026-01-22 15:05 - US-003
+- Ensured new-window hiding only runs for tiling parent relations, not popup or dialog windows.
+- Files changed: `Sources/AppBundle/tree/MacWindow.swift`, `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: `getChildParentRelation(child:parent:)` is the safest way to check tiling vs popup/dialog.
+  - Gotchas encountered: none.
+  - Useful context: dialog windows bind directly to `Workspace`, popup windows bind to `macosPopupWindowsContainer`.
 ---

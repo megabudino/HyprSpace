@@ -44,7 +44,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "This is part of the condition in US-002 but explicitly verified"
     },
     {

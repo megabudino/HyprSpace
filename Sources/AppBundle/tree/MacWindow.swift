@@ -34,7 +34,9 @@ final class MacWindow: Window {
         allWindowsMap[windowId] = window
 
         try await debugWindowsIfRecording(window)
-        if case .tilingContainer = data.parent.cases, let workspace = window.nodeWorkspace, workspace.isVisible {
+        if case .tiling = getChildParentRelation(child: window, parent: data.parent),
+           let workspace = window.nodeWorkspace, workspace.isVisible
+        {
             let monitorToOptimalHideCorner = computeMonitorToOptimalHideCorner(monitors: monitors)
             let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner
             try await window.hideInCorner(corner)
