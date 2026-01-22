@@ -4,6 +4,7 @@
 - Tiling windows can be identified by a parent `cases` value of `.tilingContainer`.
 - Use `getChildParentRelation(child:parent:)` when you need to distinguish tiling windows from popup/dialog windows.
 - AxWindowKindTest skips empty ax dump files, so keep placeholder files empty if needed.
+- The `Monitor` protocol can be mocked in tests with a lightweight struct using `Rect` and computed `width`/`height`.
 
 ## 2026-01-22 15:05 - US-001
 - Extracted `computeMonitorToOptimalHideCorner` helper and reused it in layout.
@@ -52,4 +53,24 @@
   - Patterns discovered: `layoutWorkspaces()` calls `unhideFromCorner()` before `layoutWorkspace()` for visible workspaces.
   - Gotchas encountered: `./run-tests.sh` fails at the Java-dependent step if Java isn't installed.
   - Useful context: empty ax dump files are ignored before JSON parsing in `AxWindowKindTest`.
+---
+
+## 2026-01-22 15:15 - US-006
+- Added unit test covering overlapping monitor corner selection for `computeMonitorToOptimalHideCorner`.
+- Attempted `./run-tests.sh`; it failed at the Java-dependent step because no Java runtime was available.
+- Files changed: `Sources/AppBundleTests/layout/OptimalHideCornerTest.swift`, `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: mocked `Monitor` values make it easy to unit-test layout helpers.
+  - Gotchas encountered: `./run-tests.sh` still requires a Java runtime for parser generation.
+  - Useful context: multi-monitor overlap can be simulated with adjacent `Rect` coordinates.
+---
+
+## 2026-01-22 15:20 - US-006
+- Confirmed the multi-monitor optimal hide corner test passes with the current layout logic.
+- Ran `./build-debug.sh` and `./run-swift-test.sh` to verify the change.
+- Files changed: `Sources/AppBundleTests/layout/OptimalHideCornerTest.swift`, `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: `computeMonitorToOptimalHideCorner` picks the bottom-left corner when its bottom-right probe intersects another monitor.
+  - Gotchas encountered: manual multi-monitor verification with DeskPad/BetterDisplay is still required.
+  - Useful context: no browser tooling is configured, so manual window placement checks are needed.
 ---

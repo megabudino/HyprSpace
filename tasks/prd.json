@@ -88,8 +88,8 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": "Manual testing required with virtual monitors"
+      "passes": true,
+      "notes": "Added unit test for overlapping monitor corners; manual testing required with DeskPad or BetterDisplay 2"
     }
   ]
 }
