@@ -1,6 +1,7 @@
 ## Codebase Patterns
 - Accessibility helpers live in `Sources/AppBundle/util/accessibility.swift` and wrap AXUIElementCopyAttributeValue.
 - AX observer callbacks can do synchronous AXUIElement work before dispatching the main refresh task.
+- AX subrole comparisons can use literal strings like "AXDialog" when constants are unavailable.
 
 ## 2026-01-22 16:04 - US-001
 - Implemented synchronous window ID collection from an app's AXUIElement using AX windows attribute.
@@ -36,4 +37,13 @@
 - Patterns discovered: use ./build-debug.sh to satisfy typecheck acceptance criteria.
 - Gotchas encountered: build emits known Sendable conformance warnings from macOS SDK.
 - Useful context: manual tiling window check is required to confirm jitter-free placement.
+---
+
+## 2026-01-22 16:22 - US-005
+- Skipped offscreen hiding for dialog, floating, and sheet windows by checking AX subrole before setting position.
+- Files changed: Sources/AppBundle/layout/refresh.swift, tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: AX subrole comparisons can use literal strings when constants are missing.
+- Gotchas encountered: kAXSheetSubrole constant is unavailable in this SDK, so use "AXSheet".
+- Useful context: subrole lookup failures should still hide windows for safety.
 ---

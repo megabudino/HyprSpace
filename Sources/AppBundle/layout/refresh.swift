@@ -134,11 +134,28 @@ func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: Unsaf
                    let windows = rawWindows as? NSArray {
                     var offscreenPoint = CGPoint(x: screen.frame.width + 100, y: screen.frame.height + 100)
                     if let positionValue = AXValueCreate(.cgPoint, &offscreenPoint) {
+                        let skipSubroles: Set<String> = [
+                            "AXDialog",
+                            "AXFloatingWindow",
+                            "AXSystemFloatingWindow",
+                            "AXSheet",
+                        ]
                         for window in windows {
                             let axWindow = window as! AXUIElement
                             var windowId = CGWindowID()
                             if _AXUIElementGetWindow(axWindow, &windowId) == .success,
                                newWindowIds.contains(UInt32(windowId)) {
+                                var rawSubrole: AnyObject?
+                                let subroleResult = AXUIElementCopyAttributeValue(
+                                    axWindow,
+                                    kAXSubroleAttribute as CFString,
+                                    &rawSubrole
+                                )
+                                if subroleResult == .success,
+                                   let subrole = rawSubrole as? String,
+                                   skipSubroles.contains(subrole) {
+                                    continue
+                                }
                                 AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
                             }
                         }

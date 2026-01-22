@@ -73,7 +73,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Use AXUIElementCopyAttributeValue with kAXSubroleAttribute"
     },
     {
