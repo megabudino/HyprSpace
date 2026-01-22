@@ -32,14 +32,17 @@ final class MacWindow: Window {
         if let existing = allWindowsMap[windowId] { return existing }
         let window = MacWindow(windowId, macApp, lastFloatingSize: rect?.size, parent: data.parent, adaptiveWeight: data.adaptiveWeight, index: data.index)
         allWindowsMap[windowId] = window
+        print("⏱️ [DIAG] Window \(windowId) registered at \(Date())")
 
         try await debugWindowsIfRecording(window)
         if case .tiling = getChildParentRelation(child: window, parent: data.parent),
            let workspace = window.nodeWorkspace, workspace.isVisible
         {
+            print("⏱️ [DIAG] About to hideInCorner for window \(windowId) at \(Date())")
             let monitorToOptimalHideCorner = computeMonitorToOptimalHideCorner(monitors: monitors)
             let corner = monitorToOptimalHideCorner[workspace.workspaceMonitor.rect.topLeftCorner] ?? .bottomRightCorner
             try await window.hideInCorner(corner)
+            print("⏱️ [DIAG] hideInCorner completed for window \(windowId) at \(Date())")
         }
         if try await !restoreClosedWindowsCacheIfNeeded(newlyDetectedWindow: window) {
             try await tryOnWindowDetected(window)

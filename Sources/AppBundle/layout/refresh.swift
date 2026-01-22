@@ -121,6 +121,9 @@ private func refresh() async throws {
 
 func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: UnsafeMutableRawPointer?) {
     let notif = notif as String
+    if notif == kAXWindowCreatedNotification as String {
+        print("⏱️ [DIAG] kAXWindowCreated notification received at \(Date())")
+    }
     Task { @MainActor in
         if !TrayMenuModel.shared.isEnabled { return }
         runRefreshSession(.ax(notif))
