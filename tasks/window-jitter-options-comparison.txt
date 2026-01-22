@@ -1,0 +1,113 @@
+WINDOW JITTER FIX - OPTIONS COMPARISON
+======================================
+
+PROBLEM
+-------
+When a new window opens, it briefly appears at macOS's default position before
+HyprSpace moves it to the correct tiled position, causing visible jitter.
+
+
+OPTION A: IMMEDIATE LAYOUT
+--------------------------
+Approach: Calculate and set the target tiled position immediately during window
+registration, before the window becomes visible.
+
+How it works:
+1. Window creation notification fires
+2. MacWindow.getOrRegister binds window to tree
+3. NEW: Calculate target rect using extracted layout logic
+4. NEW: Call setFrame with target rect immediately
+5. Normal layoutWorkspaces() runs (should be idempotent)
+
+Pros:
++ Window appears directly at correct position
++ Single positioning operation (no hide + move)
++ May preserve macOS Tahoe animation if set early enough
+
+Cons:
+- Requires duplicating/extracting layout calculation logic
+- Layout depends on normalized tree, weights, gaps - complex
+- Risk of drift between "early layout" and "full layout"
+- ~100+ lines of new code
+
+Complexity: HIGH
+Effort: 1-2 days
+
+
+OPTION B: HIDE-THEN-REVEAL
+--------------------------
+Approach: Hide new tiling windows offscreen immediately, then reveal them at
+the correct position during normal layout.
+
+How it works:
+1. Window creation notification fires
+2. MacWindow.getOrRegister binds window to tree
+3. NEW: Call hideInCorner() for tiling windows on visible workspaces
+4. Normal layoutWorkspaces() runs
+5. EXISTING: unhideFromCorner + layoutRecursive positions window correctly
+
+Pros:
++ Reuses existing hideInCorner/unhideFromCorner pattern
++ Minimal code changes (~30-50 lines)
++ No layout logic duplication
++ Low risk, consistent with existing architecture
+
+Cons:
+- Two AX calls per window (hide position + final position)
+- Does NOT preserve macOS Tahoe window animation
+- Brief moment where window exists offscreen (not visible to user)
+- Some apps might behave oddly when moved offscreen (rare)
+
+Complexity: LOW
+Effort: 2-4 hours
+
+
+OPTION C: ANIMATED LAYOUT
+-------------------------
+Approach: Pre-calculate target position and set it before macOS's window
+animation begins, so the system animates the window to the tiled position.
+
+How it works:
+1. Window creation notification fires
+2. NEW: Predict target rect before registration (simulate binding)
+3. NEW: Set frame immediately in observer callback (before animation starts)
+4. NEW: Do NOT call disableAnimations() for new windows
+5. MacWindow.getOrRegister binds window to tree
+6. Normal layoutWorkspaces() runs (corrects if prediction was wrong)
+
+Pros:
++ Best visual experience - preserves macOS Tahoe animation
++ Window smoothly animates to tiled position
++ No visible jitter or abrupt repositioning
+
+Cons:
+- Most complex implementation
+- Requires understanding of macOS animation timing
+- Prediction may not match final layout (async tree changes)
+- Some apps may not cooperate with frame changes during animation
+- Needs fallback mechanism for problematic apps
+- ~150+ lines of new code
+
+Complexity: HIGH
+Effort: 2-4 days
+
+
+RECOMMENDATION
+--------------
+Start with Option B for immediate jitter fix with low risk.
+Consider Option C later if preserving Tahoe animation becomes a priority.
+Option A offers no clear advantage over C for similar complexity.
+
+
+COMPARISON TABLE
+----------------
+                    | Option A      | Option B       | Option C
+--------------------|---------------|----------------|----------------
+Jitter eliminated   | Yes           | Yes            | Yes
+Tahoe animation     | Maybe         | No             | Yes
+Code complexity     | High          | Low            | High
+Lines of code       | ~100+         | ~30-50         | ~150+
+Risk                | Medium        | Low            | High
+Effort              | 1-2 days      | 2-4 hours      | 2-4 days
+AX calls per window | 1             | 2              | 1-2
+Layout duplication  | Yes           | No             | Yes (prediction)
