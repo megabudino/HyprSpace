@@ -33,3 +33,12 @@
   - Gotchas encountered: none.
   - Useful context: dialog windows bind directly to `Workspace`, popup windows bind to `macosPopupWindowsContainer`.
 ---
+
+## 2026-01-22 15:07 - US-004
+- Verified `MacWindow.getOrRegister` already guards `hideInCorner` with `workspace.isVisible` to avoid double-hiding.
+- Files changed: `tasks/prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Patterns discovered: visibility checks for new-window hiding live alongside the initial tiling registration logic.
+  - Gotchas encountered: none.
+  - Useful context: no extra code changes were needed for this story beyond confirming the existing guard.
+---

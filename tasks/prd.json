@@ -58,7 +58,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Check nodeWorkspace?.isVisible before calling hideInCorner"
     },
     {
