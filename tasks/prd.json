@@ -45,7 +45,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "The `ax` parameter in refreshObs is the app's AXUIElement. Use NSScreen.main for screen dimensions."
     },
     {

@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import PrivateApi
 
 @MainActor
 private var activeRefreshTask: Task<(), any Error>? = nil
@@ -121,10 +122,39 @@ private func refresh() async throws {
 
 func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: UnsafeMutableRawPointer?) {
     let notif = notif as String
+    if notif == kAXWindowCreatedNotification {
+        let windowIds = getWindowIdsSync(from: ax)
+        if let token = axTaskLocalAppThreadToken {
+            let knownWindowIds = currentKnownWindowIds(pid: token.pid)
+            let newWindowIds = windowIds.filter { !knownWindowIds.contains($0) }
+            if let screen = NSScreen.main,
+               !newWindowIds.isEmpty {
+                var rawWindows: AnyObject?
+                if AXUIElementCopyAttributeValue(ax, kAXWindowsAttribute as CFString, &rawWindows) == .success,
+                   let windows = rawWindows as? NSArray {
+                    var offscreenPoint = CGPoint(x: screen.frame.width + 100, y: screen.frame.height + 100)
+                    if let positionValue = AXValueCreate(.cgPoint, &offscreenPoint) {
+                        for window in windows {
+                            let axWindow = window as! AXUIElement
+                            var windowId = CGWindowID()
+                            if _AXUIElementGetWindow(axWindow, &windowId) == .success,
+                               newWindowIds.contains(UInt32(windowId)) {
+                                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     Task { @MainActor in
         if !TrayMenuModel.shared.isEnabled { return }
         runRefreshSession(.ax(notif))
     }
+}
+
+private func currentKnownWindowIds(pid: pid_t) -> Set<UInt32> {
+    MainActor.assumeIsolated { MacApp.allAppsMap[pid]?.knownWindowIds ?? [] }
 }
 
 enum OptimalHideCorner {

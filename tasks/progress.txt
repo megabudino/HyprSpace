@@ -1,5 +1,6 @@
 ## Codebase Patterns
 - Accessibility helpers live in `Sources/AppBundle/util/accessibility.swift` and wrap AXUIElementCopyAttributeValue.
+- AX observer callbacks can do synchronous AXUIElement work before dispatching the main refresh task.
 
 ## 2026-01-22 16:04 - US-001
 - Implemented synchronous window ID collection from an app's AXUIElement using AX windows attribute.
@@ -17,4 +18,13 @@
 - Patterns discovered: update MacApp state from MacWindow lifecycle hooks when a new window is registered or removed.
 - Gotchas encountered: none.
 - Useful context: knownWindowIds now tracks active window IDs per app for observer logic.
+---
+
+## 2026-01-22 16:14 - US-003
+- Hid new windows offscreen synchronously in the AX observer callback before refresh dispatch.
+- Files changed: Sources/AppBundle/layout/refresh.swift, tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: AX observer callbacks can do quick synchronous AXUIElement work before scheduling the main refresh task.
+- Gotchas encountered: prefer returning Sendable values (like Set copies) when reading MainActor state from observer code.
+- Useful context: new window IDs are detected by diffing getWindowIdsSync results against knownWindowIds.
 ---
