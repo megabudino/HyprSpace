@@ -61,6 +61,13 @@ cd HyprSpace
 ./script/install-dep.sh
 ./build-release.sh
 # Binaries will be in .release/ directory
+ 
+# You need to create a code signing certificate. Open Keychain Access and:
+# Menu → Keychain Access → Certificate Assistant → Create a Certificate...
+# Name: hyprspace-codesign-certificate
+# Identity Type: Self-Signed Root
+# Certificate Type: Code Signing
+# Click Create
 ```
 
 > [!NOTE]
