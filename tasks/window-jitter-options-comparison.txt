@@ -14,31 +14,35 @@ WHAT WE TRIED
    - Added hideInCorner() call after binding window to tree
    - Result: Still saw jitter
    - Root cause: Async gap between notification and hide call
+
+2. Early hide in refreshObs - synchronous (FAILED)
+   - Moved hide logic to observer callback, before any async dispatch
+   - Used AX API to set position/size immediately when notification fires
+   - Result: AX calls succeed (return 0) but window still appears at default position first
+   - Root cause: macOS renders window BEFORE firing kAXWindowCreatedNotification
    
-   The flow was:
-     refreshObs → Task { async } → getAxRect (await) → getBindingData (await) → hideInCorner
-                  ↑
-                  Window becomes visible during these awaits
+   The notification arrives, we successfully set position, but the first frame
+   is already rendered at the default position.
 
 
-DIAGNOSTIC FINDINGS
--------------------
-Added timestamp logging to trace the flow:
-- Notification arrives
-- Window registration happens (with async gaps)
-- hideInCorner executes
+RESEARCH: OTHER TILING WMs
+--------------------------
+- yabai: Has same flickering issue (GitHub issue #2485, Nov 2024)
+- Amethyst: Likely has same issue (uses Accessibility API)
 
-Confirmed the window is visible BEFORE hideInCorner runs due to async delays.
+This appears to be a fundamental macOS limitation, not a HyprSpace bug.
 
 
-SOLUTION
---------
-Act SYNCHRONOUSLY in the observer callback (refreshObs) BEFORE dispatching
-any async work. The observer runs on a per-app thread and can make synchronous
-AX API calls.
+CONCLUSION
+----------
+The Accessibility API cannot intercept window creation early enough to prevent
+jitter. macOS renders the window before firing the notification.
 
-Two approaches documented in separate PRDs:
-- prd-window-jitter-early-hide.md: Hide window offscreen immediately (simpler)
-- prd-window-jitter-early-position.md: Set final position immediately (preserves Tahoe animation)
+This is a fundamental macOS limitation shared by ALL Accessibility-based tiling
+window managers:
 
-Recommended: Implement early-hide first, then optionally add early-position.
+- yabai: Issue #2485 (Nov 2024) still OPEN, no solution
+- Amethyst: Uses same Accessibility API, likely has same issue
+
+ACCEPTED AS macOS LIMITATION - No fix possible without private APIs that may
+not work cross-process anyway.
