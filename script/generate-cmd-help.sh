@@ -17,6 +17,7 @@ cat << EOF > $out_file
 
 EOF
 
+shopt -s nullglob
 for file in docs/hyprspace-*.adoc; do
     subcommand=$(basename "$file" | sed 's/^hyprspace-//' | sed 's/\.adoc$//' | sed 's/-/_/g')
     sed -n -E '/tag::synopsis/, /end::synopsis/ p' "$file" | \

@@ -14,7 +14,7 @@ rm -rf .shell-completion && mkdir -p \
     --fish-script .shell-completion/fish/hyprspace.fish \
     --bash-script .shell-completion/bash/hyprspace
 
-if ! (not-outdated-bash --version | grep -q 'version 5'); then
+if ! (LC_ALL=C not-outdated-bash --version | grep -q 'version 5'); then
     echo "bash version is too old. At least version 5 is required" > /dev/stderr
     exit 1
 fi
