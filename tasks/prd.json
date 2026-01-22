@@ -1,0 +1,94 @@
+{
+  "project": "HyprSpace",
+  "branchName": "ralph/window-jitter-early-hide",
+  "description": "Eliminate window jitter by hiding new windows offscreen immediately in the AX observer callback, before any async work begins",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create synchronous window discovery helper",
+      "description": "As a developer, I need to synchronously get all windows from an app's AXUIElement so I can identify newly created windows in the observer callback.",
+      "acceptanceCriteria": [
+        "Create function `getWindowIdsSync(from appElement: AXUIElement) -> [UInt32]` in Sources/AppBundle/util/accessibility.swift",
+        "Uses `AXUIElementCopyAttributeValue` to get `kAXWindowsAttribute`",
+        "Uses `_AXUIElementGetWindow` (from PrivateApi) to get window ID for each window element",
+        "Function is synchronous (no async/await)",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Check existing Ax class in accessibility.swift for patterns"
+    },
+    {
+      "id": "US-002",
+      "title": "Track known window IDs per app",
+      "description": "As a developer, I need to track which windows we've already seen so I can identify new ones when a creation notification arrives.",
+      "acceptanceCriteria": [
+        "Add `knownWindowIds: Set<UInt32>` property to `MacApp` class in Sources/AppBundle/tree/MacApp.swift",
+        "Update the set when windows are registered in `MacWindow.getOrRegister`",
+        "Update the set when windows are garbage collected in `MacWindow.garbageCollect`",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Consider thread safety - observer runs on per-app thread"
+    },
+    {
+      "id": "US-003",
+      "title": "Hide new window immediately in observer callback",
+      "description": "As a user, I want new windows to be hidden before I can see them at their default macOS position.",
+      "acceptanceCriteria": [
+        "In `refreshObs` (Sources/AppBundle/layout/refresh.swift), when `kAXWindowCreatedNotification` is received, query app's current windows using `getWindowIdsSync`",
+        "Compare with `knownWindowIds` to find new window ID(s)",
+        "For each new window, set position offscreen using synchronous `AXUIElementSetAttributeValue` with `kAXPositionAttribute`",
+        "This happens BEFORE the `Task { @MainActor in ... }` dispatch",
+        "Hide to bottom-right corner: position = (screenWidth + 100, screenHeight + 100)",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "The `ax` parameter in refreshObs is the app's AXUIElement. Use NSScreen.main for screen dimensions."
+    },
+    {
+      "id": "US-004",
+      "title": "Verify layout correctly positions hidden windows",
+      "description": "As a user, I want hidden windows to appear at their correct tiled position after layout runs.",
+      "acceptanceCriteria": [
+        "Normal `layoutWorkspaces()` flow positions windows correctly (no changes needed)",
+        "Windows that were hidden offscreen now appear at their tiled position",
+        "Manually test: open new tiling window (e.g., kitty), confirm no jitter and correct final position",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "This is mostly verification - existing layout code should handle it"
+    },
+    {
+      "id": "US-005",
+      "title": "Skip hiding for popup and dialog windows",
+      "description": "As a user, I want popup and dialog windows to appear at their natural macOS position.",
+      "acceptanceCriteria": [
+        "Before hiding, check window's `kAXSubroleAttribute` synchronously",
+        "Skip hiding for subroles: AXDialog, AXFloatingWindow, AXSystemFloatingWindow, AXSheet",
+        "If subrole check fails or is nil, hide anyway (safer default)",
+        "Typecheck passes (`./build-debug.sh`)"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Use AXUIElementCopyAttributeValue with kAXSubroleAttribute"
+    },
+    {
+      "id": "US-006",
+      "title": "Remove diagnostic code",
+      "description": "As a developer, I need to clean up the diagnostic print statements added during investigation.",
+      "acceptanceCriteria": [
+        "Remove all `print(\"⏱️ [DIAG]...\")` statements from Sources/AppBundle/layout/refresh.swift",
+        "Remove all `print(\"⏱️ [DIAG]...\")` statements from Sources/AppBundle/tree/MacWindow.swift",
+        "Typecheck passes (`./build-debug.sh`)",
+        "Tests pass (`./run-tests.sh`)"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

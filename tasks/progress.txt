@@ -1,0 +1,11 @@
+## Codebase Patterns
+- Accessibility helpers live in `Sources/AppBundle/util/accessibility.swift` and wrap AXUIElementCopyAttributeValue.
+
+## 2026-01-22 16:04 - US-001
+- Implemented synchronous window ID collection from an app's AXUIElement using AX windows attribute.
+- Files changed: Sources/AppBundle/util/accessibility.swift, tasks/prd.json, tasks/progress.txt
+- **Learnings for future iterations:**
+- Patterns discovered: accessibility helpers live in Sources/AppBundle/util/accessibility.swift and wrap AXUIElementCopyAttributeValue.
+- Gotchas encountered: AXUIElement downcasts from AX windows arrays are treated as always-succeeding by the compiler.
+- Useful context: use PrivateApi `_AXUIElementGetWindow` for window ID extraction.
+---

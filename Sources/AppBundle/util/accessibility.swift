@@ -317,6 +317,18 @@ private func castToAxUiElementMock(_ a: AnyObject) -> AxUiElementMock {
 typealias WindowIdAndAxUiElement = (windowId: UInt32, ax: AXUIElement)
 typealias WindowIdAndAxUiElementMock = (windowId: UInt32, ax: AxUiElementMock)
 
+func getWindowIdsSync(from appElement: AXUIElement) -> [UInt32] {
+    var raw: AnyObject?
+    guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &raw) == .success,
+          let windows = raw as? NSArray else { return [] }
+
+    return windows.compactMap { window in
+        let axWindow = window as! AXUIElement
+        var windowId = CGWindowID()
+        return _AXUIElementGetWindow(axWindow, &windowId) == .success ? UInt32(windowId) : nil
+    }
+}
+
 private func windowOrNil(_ any: Any?) -> WindowIdAndAxUiElementMock? {
     guard let any else { return nil }
     let potentialWindow = castToAxUiElementMock(any as AnyObject)
