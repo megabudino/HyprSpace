@@ -13,7 +13,7 @@ struct ExperimentalUISettings {
             UserDefaults.standard.synchronize()
         }
     }
-    
+
     var centeredBarShowNumbers: Bool {
         get {
             if UserDefaults.standard.object(forKey: ExperimentalUISettingsItems.centeredBarShowNumbers.rawValue) == nil {
@@ -31,7 +31,8 @@ struct ExperimentalUISettings {
     var centeredBarWindowLevel: CenteredBarWindowLevel {
         get {
             if let raw = UserDefaults.standard.string(forKey: ExperimentalUISettingsItems.centeredBarWindowLevel.rawValue),
-               let value = CenteredBarWindowLevel(rawValue: raw) {
+               let value = CenteredBarWindowLevel(rawValue: raw)
+            {
                 return value
             }
             return .popup // default: above menu bar
@@ -46,7 +47,8 @@ struct ExperimentalUISettings {
     var centeredBarTargetDisplay: CenteredBarTargetDisplay {
         get {
             if let raw = UserDefaults.standard.string(forKey: ExperimentalUISettingsItems.centeredBarTargetDisplay.rawValue),
-               let value = CenteredBarTargetDisplay(rawValue: raw) {
+               let value = CenteredBarTargetDisplay(rawValue: raw)
+            {
                 return value
             }
             return .focusedWorkspaceMonitor // default: follows focused workspace

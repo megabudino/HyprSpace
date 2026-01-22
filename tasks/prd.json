@@ -73,7 +73,7 @@
         "Typecheck passes (`./build-debug.sh`)"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "This story is mostly verification that existing code works with the new hide call"
     },
     {

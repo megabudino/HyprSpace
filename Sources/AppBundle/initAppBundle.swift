@@ -18,12 +18,12 @@ import Foundation
     checkAccessibilityPermissions()
     startUnixSocketServer()
     GlobalObserver.initObserver()
-    
+
     // Initialize centered workspace bar if enabled
     if TrayMenuModel.shared.experimentalUISettings.centeredBarEnabled {
         StatusBarManager.shared.setupCenteredBar(viewModel: TrayMenuModel.shared)
     }
-    
+
     Task {
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()

@@ -48,7 +48,7 @@ public class TrayMenuModel: ObservableObject {
         items.insert(mode, at: 0)
     }
     TrayMenuModel.shared.trayItems = items
-    
+
     // Update centered workspace bar if enabled
     if TrayMenuModel.shared.experimentalUISettings.centeredBarEnabled {
         StatusBarManager.shared.updateCenteredBar(viewModel: TrayMenuModel.shared)
