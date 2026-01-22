@@ -123,48 +123,60 @@ private func refresh() async throws {
 func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: UnsafeMutableRawPointer?) {
     let notif = notif as String
     if notif == kAXWindowCreatedNotification {
-        let windowIds = getWindowIdsSync(from: ax)
-        if let token = axTaskLocalAppThreadToken {
-            let knownWindowIds = currentKnownWindowIds(pid: token.pid)
-            let newWindowIds = windowIds.filter { !knownWindowIds.contains($0) }
-            if let screen = NSScreen.main,
-               !newWindowIds.isEmpty
-            {
-                var rawWindows: AnyObject?
-                if AXUIElementCopyAttributeValue(ax, kAXWindowsAttribute as CFString, &rawWindows) == .success,
-                   let windows = rawWindows as? NSArray
+        print("⏱️ [DIAG] kAXWindowCreated received")
+        
+        // Check what role the ax element has - it might be the window itself!
+        var rawRole: AnyObject?
+        let roleResult = AXUIElementCopyAttributeValue(ax, kAXRoleAttribute as CFString, &rawRole)
+        let role = rawRole as? String ?? "unknown"
+        print("⏱️ [DIAG] ax element role: \(role) (result: \(roleResult.rawValue))")
+        
+        // Try to get window ID directly from ax - it might be the window
+        var windowId = CGWindowID()
+        let windowIdResult = _AXUIElementGetWindow(ax, &windowId)
+        print("⏱️ [DIAG] Direct window ID from ax: \(windowId) (result: \(windowIdResult.rawValue))")
+        
+        if let token = axTaskLocalAppThreadToken,
+           let screen = NSScreen.main,
+           windowIdResult == .success,
+           windowId != 0
+        {
+            let knownWindowIds = getKnownWindowIds(pid: token.pid)
+            print("⏱️ [DIAG] Window \(windowId), known: \(knownWindowIds)")
+            if !knownWindowIds.contains(UInt32(windowId)) {
+                let skipSubroles: Set<String> = [
+                    "AXDialog",
+                    "AXFloatingWindow",
+                    "AXSystemFloatingWindow",
+                    "AXSheet",
+                ]
+                var rawSubrole: AnyObject?
+                let subroleResult = AXUIElementCopyAttributeValue(ax, kAXSubroleAttribute as CFString, &rawSubrole)
+                if subroleResult == .success,
+                   let subrole = rawSubrole as? String,
+                   skipSubroles.contains(subrole)
                 {
+                    print("⏱️ [DIAG] Skipping window \(windowId) with subrole: \(subrole)")
+                } else {
+                    // Try multiple approaches to hide immediately
+                    
+                    // Approach 1: Try kAXHiddenAttribute (may not work for windows)
+                    let hiddenResult = AXUIElementSetAttributeValue(ax, kAXHiddenAttribute as CFString, kCFBooleanTrue)
+                    print("⏱️ [DIAG] kAXHiddenAttribute result: \(hiddenResult.rawValue)")
+                    
+                    // Approach 2: Set size to 1x1 AND position offscreen
+                    var tinySize = CGSize(width: 1, height: 1)
                     var offscreenPoint = CGPoint(x: screen.frame.width + 100, y: screen.frame.height + 100)
-                    if let positionValue = AXValueCreate(.cgPoint, &offscreenPoint) {
-                        let skipSubroles: Set<String> = [
-                            "AXDialog",
-                            "AXFloatingWindow",
-                            "AXSystemFloatingWindow",
-                            "AXSheet",
-                        ]
-                        for window in windows {
-                            let axWindow = window as! AXUIElement
-                            var windowId = CGWindowID()
-                            if _AXUIElementGetWindow(axWindow, &windowId) == .success,
-                               newWindowIds.contains(UInt32(windowId))
-                            {
-                                var rawSubrole: AnyObject?
-                                let subroleResult = AXUIElementCopyAttributeValue(
-                                    axWindow,
-                                    kAXSubroleAttribute as CFString,
-                                    &rawSubrole,
-                                )
-                                if subroleResult == .success,
-                                   let subrole = rawSubrole as? String,
-                                   skipSubroles.contains(subrole)
-                                {
-                                    continue
-                                }
-                                AXUIElementSetAttributeValue(axWindow, kAXPositionAttribute as CFString, positionValue)
-                            }
-                        }
+                    if let sizeValue = AXValueCreate(.cgSize, &tinySize),
+                       let positionValue = AXValueCreate(.cgPoint, &offscreenPoint)
+                    {
+                        let sizeResult = AXUIElementSetAttributeValue(ax, kAXSizeAttribute as CFString, sizeValue)
+                        let posResult = AXUIElementSetAttributeValue(ax, kAXPositionAttribute as CFString, positionValue)
+                        print("⏱️ [DIAG] Hide window \(windowId): size=\(sizeResult.rawValue), pos=\(posResult.rawValue)")
                     }
                 }
+            } else {
+                print("⏱️ [DIAG] Window \(windowId) already known")
             }
         }
     }
@@ -174,8 +186,33 @@ func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: Unsaf
     }
 }
 
-private func currentKnownWindowIds(pid: pid_t) -> Set<UInt32> {
-    MainActor.assumeIsolated { MacApp.allAppsMap[pid]?.knownWindowIds ?? [] }
+// Thread-safe storage for known window IDs, accessible from per-app threads
+// Synchronization handled manually via knownWindowIdsLock
+private let knownWindowIdsLock = NSLock()
+nonisolated(unsafe) private var knownWindowIdsByPid: [pid_t: Set<UInt32>] = [:]
+
+func getKnownWindowIds(pid: pid_t) -> Set<UInt32> {
+    knownWindowIdsLock.lock()
+    defer { knownWindowIdsLock.unlock() }
+    return knownWindowIdsByPid[pid] ?? []
+}
+
+func addKnownWindowId(pid: pid_t, windowId: UInt32) {
+    knownWindowIdsLock.lock()
+    defer { knownWindowIdsLock.unlock() }
+    knownWindowIdsByPid[pid, default: []].insert(windowId)
+}
+
+func removeKnownWindowId(pid: pid_t, windowId: UInt32) {
+    knownWindowIdsLock.lock()
+    defer { knownWindowIdsLock.unlock() }
+    knownWindowIdsByPid[pid]?.remove(windowId)
+}
+
+func removeAllKnownWindowIds(pid: pid_t) {
+    knownWindowIdsLock.lock()
+    defer { knownWindowIdsLock.unlock() }
+    knownWindowIdsByPid.removeValue(forKey: pid)
 }
 
 enum OptimalHideCorner {
